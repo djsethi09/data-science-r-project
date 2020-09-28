@@ -1,0 +1,210 @@
+---
+title: "Data Science With R-Project Healthcare - Simplilearn"
+author: "Dheeraj Bharat Sethi"
+date: "8/1/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Project Statement
+
+A nationwide survey of hospital costs conducted by the US Agency for 
+Healthcare consists of hospital records of inpatient samples. 
+The given data is restricted to the city of Wisconsin and relates to #patients in the age group 0-17 years. The agency wants to analyze the data to 
+research on healthcare costs and their utilization.
+
+First, lets import the required csv file, and get the feel of data, columns etc
+We will be using various R basic functions to do that
+```{r Hospital}
+hospital_data<-read.csv(file.choose(),header = T)
+names(hospital_data) #Get the columns
+head(hospital_data) #First 6 rows
+str(hospital_data) #Structure, datatype of each column
+```
+
+# Task 1
+To record the patient statistics, the agency wants to find the 
+age category of people who frequent the hospital and has the maximum expenditure.
+
+So, here we need to find out the number of records grouped by AGE
+As AGE is int variable, its better to convert that to a factor, and then use table, summary functions to get the count of rows based on AGE values
+
+```{r Task 1}
+#hospital_data$AGE<-as.factor(hospital_data$AGE)
+levels(as.factor(hospital_data$AGE))
+table(as.factor(hospital_data$AGE)) #here AGE 0 has max number, getting an idea
+summary(hospital_data) #Summary of each variable in the dataset
+
+#Now the max cost analysis, we need the aggregated values of TOTCHRG based on AGE, we can use aggregate function
+cost_aggregate<-aggregate(TOTCHG~AGE,data = hospital_data,FUN = sum)
+cost_aggregate
+max(cost_aggregate) #678118
+cost_aggregate[which.max(cost_aggregate$TOTCHG),] #Tells AGE=0 as maximum entry in aggregate
+```
+
+## Conclusion 1: 
+Above output clearly shows the AGE=0 has 307 records, meaning, patients with AGE=0 are the most frequent visitors to the hospital_data.
+
+## Conclusion 2: 
+Aggregated expenditure of AGE=0 is the maximum, meaning, AGE=0 has the maximum costs.
+
+Its time to PLOT these to visualize the observation
+We can draw a Histogram, or a BarPlot
+```{r Task 1 plot}
+hist(hospital_data$AGE,breaks = nlevels(as.factor(hospital_data$AGE)),xlab = "Age",ylab = "Total Records",col = "green",freq = T,density = 100,border = 4)
+barplot(table(hospital_data$LOS,hospital_data$AGE),xlab = "Age",ylab = "Total rows, Days Stayed stacked",col = "green",density = 100,border = 4)
+
+```
+
+# Task 2
+In order of severity of the diagnosis and treatments and to find out the expensive treatments, the agency wants to find the diagnosis-related group that has maximum hospitalization and expenditure.
+
+This is similar problem to Task 1, here we need to aggregate the Cost based on the diagnosis codes
+```{r Task 2}
+summary(as.factor(hospital_data$APRDRG)) #we can see code 640 has 267 records out of 500
+cost_diag_aggregate<-aggregate(TOTCHG~APRDRG,data = hospital_data,FUN = sum)
+cost_diag_aggregate
+max(cost_diag_aggregate) #678118
+cost_diag_aggregate[which.max(cost_diag_aggregate$TOTCHG),]
+```
+
+## Conclusion: 
+Above output clearly shows the APRDG=640 has 267 records, meaning, and also the maximum costs value.
+
+Its time to PLOT these to visualize the observation
+We can draw a Histogram, or a BarPlot
+
+``` {r Task 2 Plot}
+hist(hospital_data$APRDRG,breaks = nlevels(as.factor(hospital_data$APRDRG)),xlab = "Diagnosis Code",ylab = "Sum of expenses",col = "green",freq = T,density = 100,border = 4)
+#Histo chart shows the same results,
+#Barplot won't be practical here, as it would take a lot of space to draw x bars. As can be seen with unique number of values of diagnosis codes
+nlevels(as.factor(hospital_data$APRDRG))
+#or
+unique(hospital_data$APRDRG)
+#We have 63 unique codes
+```
+
+
+# Task 3
+To make sure that there is no malpractice, the agency needs to analyze if the race of the patient is related to the hospitalization costs.
+
+Here, we have RACE - Categorical variable
+
+Cost - Continuous variable
+
+To find the relation between such combination, we can use ANOVA test
+
+And we are doing the Hypothesis Testing 
+
+Null Hypothesis H0: RACE has No Effect on Costs
+
+Alternate Hypothesis Ha : RACE has Effect on Costs
+
+To REJECT the H0, we need enough evidences, means, a striking difference between the both. 
+
+In ANOVA, we have F-statistic
+
+## Step 1
+
+Data Wrangling/Cleaning
+
+We need to clean up the entries with values NA in any column
+## Step 2
+
+Apply ANOVA test R function, on TOTCHG as Dependent, RACE as independent variable
+```{r Task 3}
+anyNA(hospital_data) #this tells TRUE
+anyNA(hospital_data$RACE) #RACE has some NA entries
+summary(hospital_data$RACE) # 1 NA value, we can omit this, as we have no way to predict this as we do for numerical variables
+hospital_data<-na.omit(hospital_data)
+anyNA(hospital_data) #Now we have no NA values
+#ready to test ANOVA now
+model_race_vost_aov<-aov(hospital_data$TOTCHG~hospital_data$RACE) 
+summary(model_race_vost_aov)
+```
+
+## Conclusion
+F-statistic is 0.164, and P-value (probability) is 0.686 > 0.05 (significance level), hence we CANNOT REJECT the NULL Hypothesis.
+
+Means RACE HAS NO IMPACT ON COSTS
+
+
+# Task 4
+To properly utilize the costs, the agency has to analyze the severity of the hospital costs by age and gender for the proper allocation of resources.
+
+Hospital wants to understand, whether The Cost Increases/decreases with AGE or GENDER, so we need to find the linear relation among these.
+
+Using Linear Regression model, with TOTCHG as dependent (predicted) variable, GENDER, AGE as independent (predictor) variables
+``` {r Task 4}
+hospital_data$FEMALE<-as.factor(hospital_data$FEMALE)
+summary(hospital_data$FEMALE) #almost similar number of MALES and FEMALES
+fit_1<-lm(formula =  TOTCHG~AGE+FEMALE,data = hospital_data)
+fit_1
+summary(fit_1)
+```
+## Conclusion 
+We see, p-values for AGE is much lower than significance level, but p-value for Gender is much closer to 0.05.
+
+That means, AGE has bigger impact on costs, although GENDER also is significant for the model.
+
+Coefficient of AGE is higher, means cost is positively increasing with age.
+
+Coefficient of FEMALE 1 is negative, tells, Costs for female patients are lesser as compare to the Males
+
+Lets now plot out model fit_1
+```{r Task 4 Plot}
+library(ggplot2)
+ggplot(hospital_data,aes(y=TOTCHG,x=AGE,color=factor(FEMALE)))+geom_point()+stat_smooth(method="lm",se=FALSE)
+#The plot clearly defines our regression model, female have lesser costs than males,
+#and More the age, more the costs
+```
+
+# Task 5
+Since the length of stay is the crucial factor for inpatients, the agency wants to find if the length of stay can be predicted from age, gender, and race.
+
+This is similar problem as 3, here the predictor variables are AGE,GENDER,RACE Predicted variable is Length of stay.
+
+Lets use linear regression to find the relation
+
+```{r Task 5}
+hospital_data$RACE<-as.factor(hospital_data$RACE)
+hospital_data<-na.omit(hospital_data)
+fit_los<-lm(data = hospital_data,formula = LOS~AGE+FEMALE+RACE)
+fit_los
+summary(fit_los)
+```
+
+## Conclusion
+None of the predictor variables show significance to the model, 
+
+All the p-values are high, thus, Accepting the Null Hypothesis
+
+Concluding that Length of stay cannot be predicted by AGE, RACE, or GENDER
+
+
+# Task 6
+To perform a complete analysis, the agency wants to find the variable that mainly affects hospital costs.
+
+Predict Costs, with all other independent variables.
+
+```{r Task 6}
+fit_costs_all<-lm(data = hospital_data,formula = TOTCHG~AGE+FEMALE+RACE+APRDRG+LOS)
+fit_costs_all
+summary(fit_costs_all)
+```
+
+## Conclusion
+AGE, LOS, APRDRG affect the costs for hospitals, none other does.
+
+LOS has positive relation with Costs.
+
+Here, LOS is the continuous variable, we can compare this with costs as=>
+
+With each increment in length of days stayed, the Cost/Charges increases by 742.97 units.
+
+
